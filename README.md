@@ -142,7 +142,8 @@ kubectl --kubeconfig k8s/multicare-dev-eks.config apply -f k8s/stress-app.yaml
   - Protocol split
     - `const GRPC_RATIO` → 0.8; `0.8 → 80% gRPC, 20% HTTP`
 
-
+  - Endpoint configuration - Point this to the right ingest FQDN
+    - `const BASE_HOST` → "stresstest.mc.dev.testme.com"
 
 
 - Run K6 load test:
