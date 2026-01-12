@@ -168,7 +168,7 @@ spec:
   entryPoints:
     - websecure
   tls:
-    secretName: lkdatacenter-mc-dev-tls
+    secretName: datacenter-mc-dev-tls
   routes:
     - match: Host(`stresstest.mc.dev.testme.com`) && PathPrefix(`/stress.StressTest`)
       kind: Rule
@@ -386,7 +386,7 @@ spec:
   entryPoints:
     - websecure
   tls:
-    secretName: lkdatacenter-mc-dev-tls
+    secretName: datacenter-mc-dev-tls
   routes:
     - match: Host(`stresstest.mc.dev.testme.com`) && PathPrefix(`/dashboard`)
       kind: Rule
@@ -554,7 +554,7 @@ spec:
   entryPoints:
     - websecure
   tls:
-    secretName: lkdatacenter-mc-dev-tls
+    secretName: datacenter-mc-dev-tls
   routes:
     - match: Host(`stresstest.mc.dev.testme.com`) && PathPrefix(`/messages`)
       kind: Rule
