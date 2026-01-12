@@ -1,0 +1,572 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sql-stress-ingester
+  namespace: stresstest
+  labels:
+    app: sql-stress-ingester
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sql-stress-ingester
+  template:
+    metadata:
+      labels:
+        app: sql-stress-ingester
+      annotations:
+        k8s.grafana.com/scrape: "true"
+        k8s.grafana.com/port: "8080"
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+    spec:
+      serviceAccountName: sql-stress
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: sql-stress-ingester
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app: sql-stress-ingester
+      containers:
+        - name: sql-stress-ingester
+          image: ghcr.io/techcrazi/sql-stress:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: "2000m"
+              memory: "4096Mi"
+            limits:
+              cpu: "3000m"
+              memory: "6144Mi"
+          ports:
+            - containerPort: 8080
+            - containerPort: 8081
+          env:
+            # SQL connection
+            - name: SQL_SERVER
+              value: "MS_SQL_ENDPOINT.us-west-2.rds.amazonaws.com"
+            - name: SQL_PORT
+              value: "1433"
+            - name: SQL_DATABASE
+              value: "MS_SQL_DBName"
+            - name: SQL_USER
+              value: "MS_SQL_UserName"
+            - name: SQL_PASSWORD
+              value: "MS_SQL_UserPassword"
+            - name: SQL_ENCRYPT
+              value: "true"
+            - name: SQL_TRUST_SERVER_CERT
+              value: "true"
+            # Behavior
+            - name: APP_ROLE
+              value: "ingester"
+            - name: DISABLE_SQL
+              value: "false"    # ingester writes to SQL
+            - name: SQL_INSERT_MODE
+              value: "body"     # random | body | hl7
+            - name: PAYLOAD_MIN_BYTES
+              value: "1024"
+            - name: PAYLOAD_MAX_BYTES
+              value: "52428800"
+            # SQL tuning
+            - name: SQL_TIMEOUT_SECONDS
+              value: "60"
+            - name: SQL_CONNECT_TIMEOUT_SECONDS
+              value: "30"
+            - name: SQL_MAX_POOL_SIZE
+              value: "200"
+            - name: SQL_MIN_POOL_SIZE
+              value: "10"
+            - name: MAX_INFLIGHT_SQL
+              value: "64"        # cap concurrent SQL writes per pod (0 = unlimited)
+            - name: MAX_QUEUE_LENGTH
+              value: "1024"      # buffer incoming writes before SQL
+            - name: SQL_TABLE
+              value: "stress_writes"
+            # Ports
+            - name: APP_PORT
+              value: "8080"
+            - name: APP_GRPC_PORT
+              value: "8081"
+            - name: LOG_LEVEL
+              value: "Debug"
+            # Ring/peers
+            - name: RING_ENDPOINT
+              value: "http://sql-stress-aggregator.stresstest.svc.cluster.local/register"
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PEER_SERVICE_NAME
+              value: "sql-stress-ingester"
+            - name: PEER_SERVICE_PORT
+              value: "8080"
+            - name: PEER_DASHBOARD_URLS
+              value: ""
+            # OTLP (optional)
+            - name: OTLP_ENDPOINT
+              value: "http://grafana-k8s-monitoring-alloy-receiver.grafana-cloud.svc.cluster.local:4317"
+            - name: OTLP_INSECURE
+              value: "true"
+            - name: OTLP_HEADERS
+              value: ""
+            # Locale
+            - name: DOTNET_SYSTEM_GLOBALIZATION_INVARIANT
+              value: "0"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sql-stress-ingester
+  namespace: stresstest
+  labels:
+    app: sql-stress-ingester
+  annotations:
+    k8s.grafana.com/scrape: "true"
+    k8s.grafana.com/port: "8080"
+spec:
+  selector:
+    app: sql-stress-ingester
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
+    - port: 81
+      targetPort: 8081
+      protocol: TCP
+      name: grpc
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: sql-stress-ingester
+  namespace: stresstest
+spec:
+  entryPoints:
+    - websecure
+  tls:
+    secretName: lkdatacenter-mc-dev-tls
+  routes:
+    - match: Host(`stresstest.mc.dev.testme.com`) && PathPrefix(`/stress.StressTest`)
+      kind: Rule
+      services:
+        - name: sql-stress-ingester
+          port: 81
+          scheme: h2c
+      middlewares:
+        - name: sql-stress-buffer
+    - match: Host(`stresstest.mc.dev.testme.com`) && PathPrefix(`/write`)
+      kind: Rule
+      services:
+        - name: sql-stress-ingester
+          port: 80
+      middlewares:
+        - name: sql-stress-buffer
+    - match: Host(`stresstest.mc.dev.testme.com`) && PathPrefix(`/healthz`)
+      kind: Rule
+      services:
+        - name: sql-stress-ingester
+          port: 80
+    - match: Host(`stresstest.mc.dev.testme.com`) && PathPrefix(`/status`)
+      kind: Rule
+      services:
+        - name: sql-stress-ingester
+          port: 80
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sql-stress
+  namespace: stresstest
+  labels:
+    app: sql-stress
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: sql-stress
+  namespace: stresstest
+  labels:
+    app: sql-stress
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints", "pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sql-stress
+  namespace: stresstest
+  labels:
+    app: sql-stress
+subjects:
+  - kind: ServiceAccount
+    name: sql-stress
+    namespace: stresstest
+roleRef:
+  kind: Role
+  name: sql-stress
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sql-stress-ingester
+  namespace: stresstest
+  labels:
+    app: sql-stress-ingester
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sql-stress-ingester
+  minReplicas: 3
+  maxReplicas: 15
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120 # wait 2 minutes below target before scaling down
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    # - type: Resource
+    #   resource:
+    #     name: memory
+    #     target:
+    #       type: Utilization
+    #       averageUtilization: 70
+---
+# Aggregator (ring + dashboard only, no SQL writes/reads)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sql-stress-aggregator
+  namespace: stresstest
+  labels:
+    app: sql-stress-aggregator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sql-stress-aggregator
+  template:
+    metadata:
+      labels:
+        app: sql-stress-aggregator
+      annotations:
+        k8s.grafana.com/scrape: "true"
+        k8s.grafana.com/port: "8080"
+    spec:
+      serviceAccountName: sql-stress
+      containers:
+        - name: sql-stress-aggregator
+          image: ghcr.io/techcrazi/sql-stress:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 200m
+              memory: 128Mi
+            limits:
+              cpu: 400m
+              memory: 256Mi
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SQL_SERVER
+              value: "MS_SQL_ENDPOINT.us-west-2.rds.amazonaws.com"
+            - name: SQL_PORT
+              value: "1433"
+            - name: SQL_DATABASE
+              value: "MS_SQL_DBName"
+            - name: SQL_USER
+              value: "MS_SQL_UserName"
+            - name: SQL_PASSWORD
+              value: "MS_SQL_UserPassword"
+            - name: SQL_ENCRYPT
+              value: "true"
+            - name: SQL_TRUST_SERVER_CERT
+              value: "true"
+            - name: APP_ROLE
+              value: "aggregator"
+            - name: DISABLE_SQL
+              value: "true"   # aggregator should not do writes; dashboard only
+            - name: SQL_INSERT_MODE
+              value: "random"
+            - name: APP_PORT
+              value: "8080"
+            - name: APP_GRPC_PORT
+              value: "8081"
+            - name: LOG_LEVEL
+              value: "Debug"
+            - name: RING_ENDPOINT
+              value: "http://sql-stress-aggregator.stresstest.svc.cluster.local/register"
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PEER_SERVICE_NAME
+              value: "sql-stress-ingester"
+            - name: PEER_SERVICE_PORT
+              value: "8080"
+            - name: PEER_DASHBOARD_URLS
+              value: ""
+            - name: OTLP_ENDPOINT
+              value: "http://grafana-k8s-monitoring-alloy-receiver.grafana-cloud.svc.cluster.local:4317"
+            - name: OTLP_INSECURE
+              value: "true"
+            - name: OTLP_HEADERS
+              value: ""
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sql-stress-aggregator
+  namespace: stresstest
+  labels:
+    app: sql-stress-aggregator
+spec:
+  selector:
+    app: sql-stress-aggregator
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: sql-stress-aggregator
+  namespace: stresstest
+spec:
+  entryPoints:
+    - websecure
+  tls:
+    secretName: lkdatacenter-mc-dev-tls
+  routes:
+    - match: Host(`stresstest.mc.dev.testme.com`) && PathPrefix(`/dashboard`)
+      kind: Rule
+      services:
+        - name: sql-stress-aggregator
+          port: 80
+      middlewares:
+        - name: sql-stress-buffer
+    - match: Host(`stresstest.mc.dev.testme.com`) && PathPrefix(`/stats`)
+      kind: Rule
+      services:
+        - name: sql-stress-aggregator
+          port: 80
+---
+apiVersion: traefik.io/v1alpha1
+kind: ServersTransport
+metadata:
+  name: sql-stress-h2c
+  namespace: stresstest
+spec:
+  serverName: ""
+  insecureSkipVerify: true
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: sql-stress-buffer
+  namespace: stresstest
+spec:
+  buffering:
+    maxRequestBodyBytes: 67108864   # 64 MB to cover 50 MB payloads + overhead
+    maxResponseBodyBytes: 0         # unlimited
+    retryExpression: IsNetworkError() && Attempts() <= 1
+---
+# Messages reader (separate from aggregator; SQL reads only)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sql-stress-messages
+  namespace: stresstest
+  labels:
+    app: sql-stress-messages
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sql-stress-messages
+  template:
+    metadata:
+      labels:
+        app: sql-stress-messages
+      annotations:
+        k8s.grafana.com/scrape: "true"
+        k8s.grafana.com/port: "8080"
+    spec:
+      serviceAccountName: sql-stress
+      containers:
+        - name: sql-stress-messages
+          image: ghcr.io/techcrazi/sql-stress:latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 700m
+              memory: 4Gi
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SQL_SERVER
+              value: "MS_SQL_ENDPOINT.us-west-2.rds.amazonaws.com"
+            - name: SQL_PORT
+              value: "1433"
+            - name: SQL_DATABASE
+              value: "MS_SQL_DBName"
+            - name: SQL_USER
+              value: "MS_SQL_UserName"
+            - name: SQL_PASSWORD
+              value: "MS_SQL_UserPassword"
+            - name: SQL_ENCRYPT
+              value: "true"
+            - name: SQL_TRUST_SERVER_CERT
+              value: "true"
+            - name: APP_ROLE
+              value: "messages"
+            - name: DISABLE_SQL
+              value: "true" # prevent writes; reads still allowed
+            - name: SQL_INSERT_MODE
+              value: "random"
+            - name: APP_PORT
+              value: "8080"
+            - name: APP_GRPC_PORT
+              value: "8081"
+            - name: LOG_LEVEL
+              value: "Debug"
+            - name: RING_ENDPOINT
+              value: "" # no ring participation
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PEER_SERVICE_NAME
+              value: ""
+            - name: PEER_SERVICE_PORT
+              value: "8080"
+            - name: PEER_DASHBOARD_URLS
+              value: ""
+            - name: SQL_TIMEOUT_SECONDS
+              value: "60"
+            - name: SQL_CONNECT_TIMEOUT_SECONDS
+              value: "30"
+            - name: SQL_MAX_POOL_SIZE
+              value: "200"
+            - name: SQL_MIN_POOL_SIZE
+              value: "10"
+            - name: MAX_INFLIGHT_SQL
+              value: "32"
+            - name: SQL_TABLE
+              value: "stress_writes"
+            - name: OTLP_ENDPOINT
+              value: "http://grafana-k8s-monitoring-alloy-receiver.grafana-cloud.svc.cluster.local:4317"
+            - name: OTLP_INSECURE
+              value: "true"
+            - name: OTLP_HEADERS
+              value: ""
+            - name: DOTNET_SYSTEM_GLOBALIZATION_INVARIANT
+              value: "0"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sql-stress-messages
+  namespace: stresstest
+  labels:
+    app: sql-stress-messages
+spec:
+  selector:
+    app: sql-stress-messages
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: sql-stress-messages
+  namespace: stresstest
+spec:
+  entryPoints:
+    - websecure
+  tls:
+    secretName: lkdatacenter-mc-dev-tls
+  routes:
+    - match: Host(`stresstest.mc.dev.testme.com`) && PathPrefix(`/messages`)
+      kind: Rule
+      services:
+        - name: sql-stress-messages
+          port: 80
+      middlewares:
+        - name: sql-stress-buffer
+    - match: Host(`stresstest.mc.dev.testme.com`) && PathPrefix(`/sqlread`)
+      kind: Rule
+      services:
+        - name: sql-stress-messages
+          port: 80
+      middlewares:
+        - name: sql-stress-buffer
