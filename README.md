@@ -119,19 +119,19 @@ kubectl --kubeconfig k8s/multicare-dev-eks.config apply -f k8s/stress-app.yaml
      - `const VUS` → 50                    `number of concurrent virtual users`
      - `const TEST_DURATION` → "1h"        `how long to run the test`
 
-// Common size units
-const KB → 1024
-const MB → 1024 * 1024
+  - Common size units
+    - `const KB` → 1024 `file size in KB`
+    - `const MB` → 1024 * 1024 `file size in MB`
 
-// File size buckets (in bytes)
-const SMALL_MIN  → 1 * KB
-const SMALL_MAX  → 100 * KB        // roughly matches "1–100 KB"
-const MED_MIN    → 100 * KB
-const MED_MAX    → 1 * MB
-const LARGE_MIN  → 1 * MB
-const LARGE_MAX  → 10 * MB
-const HUGE_MIN   → 10 * MB
-const HUGE_MAX   → 50 * MB
+  - File size buckets (in bytes)
+    - `const SMALL_MIN`  → 1 * KB
+    - `const SMALL_MAX`  → 100 * KB
+    - `const MED_MIN`    → 100 * KB
+    - `const MED_MAX`    → 1 * MB
+    - `const LARGE_MIN`  → 1 * MB
+    - `const LARGE_MAX`  → 10 * MB
+    - `const HUGE_MIN`   → 10 * MB
+    - `const HUGE_MAX`   → 50 * MB
 
 // Bucket distribution (must roughly sum to 1.0)
 const P_SMALL → 0.45   // 45% of messages in 1–100 KB
