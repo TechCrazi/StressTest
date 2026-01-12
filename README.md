@@ -146,4 +146,4 @@ const GRPC_RATIO = 0.8;             // 0.8 = 80% gRPC, 20% HTTP
 
 
 - Run K6 load test:
-.\k6.exe run full-loadtest.js
+  - .\k6.exe run full-loadtest.js
