@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package stress;
+
+service StressTest {
+  rpc Write (WriteRequest) returns (WriteResponse);
+  rpc Healthz (HealthRequest) returns (HealthResponse);
+}
+
+message WriteRequest {
+  int32 size_bytes = 1; // optional: if 0, server picks random between min/max
+}
+
+message WriteResponse {
+  int32 bytes_written = 1;
+  int64 duration_ms = 2;
+  string table = 3;
+  string timestamp = 4;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+}
