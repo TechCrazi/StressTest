@@ -112,7 +112,7 @@ kubectl --kubeconfig k8s/multicare-dev-eks.config apply -f k8s/stress-app.yaml
 - `/messages` full mode truncates per-row payload to 5 MB to avoid large in-memory blobs; size-only mode is lightweight.
 - Set `PAYLOAD_MIN_BYTES` = `PAYLOAD_MAX_BYTES` for deterministic size. For heavier loads, tune `MAX_INFLIGHT_SQL`, pool settings, and RDS instance size.
 
-### K6 testing ###
+## K6 Testing
 - Update \k6\full-loadtest.js file
 
   - Test intensity
