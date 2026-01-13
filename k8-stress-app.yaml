@@ -1,3 +1,18 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: stresstest-sql
+  namespace: stresstest
+type: Opaque
+stringData:
+  SQL_SERVER: "MS_SQL_ENDPOINT.us-west-2.rds.amazonaws.com"
+  SQL_PORT: "1433"
+  SQL_DATABASE: "MS_SQL_DBName"
+  SQL_USER: "MS_SQL_UserName"
+  SQL_PASSWORD: "MS_SQL_UserPassword"
+  SQL_ENCRYPT: "true"
+  SQL_TRUST_SERVER_CERT: "true"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -51,21 +66,42 @@ spec:
             - containerPort: 8080
             - containerPort: 8081
           env:
-            # SQL connection
+            # SQL connection (from Secret)
             - name: SQL_SERVER
-              value: "MS_SQL_ENDPOINT.us-west-2.rds.amazonaws.com"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_SERVER
             - name: SQL_PORT
-              value: "1433"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_PORT
             - name: SQL_DATABASE
-              value: "MS_SQL_DBName"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_DATABASE
             - name: SQL_USER
-              value: "MS_SQL_UserName"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_USER
             - name: SQL_PASSWORD
-              value: "MS_SQL_UserPassword"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_PASSWORD
             - name: SQL_ENCRYPT
-              value: "true"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_ENCRYPT
             - name: SQL_TRUST_SERVER_CERT
-              value: "true"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_TRUST_SERVER_CERT
             # Behavior
             - name: APP_ROLE
               value: "ingester"
@@ -303,20 +339,43 @@ spec:
           ports:
             - containerPort: 8080
           env:
+            # SQL connection (from Secret)
             - name: SQL_SERVER
-              value: "MS_SQL_ENDPOINT.us-west-2.rds.amazonaws.com"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_SERVER
             - name: SQL_PORT
-              value: "1433"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_PORT
             - name: SQL_DATABASE
-              value: "MS_SQL_DBName"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_DATABASE
             - name: SQL_USER
-              value: "MS_SQL_UserName"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_USER
             - name: SQL_PASSWORD
-              value: "MS_SQL_UserPassword"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_PASSWORD
             - name: SQL_ENCRYPT
-              value: "true"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_ENCRYPT
             - name: SQL_TRUST_SERVER_CERT
-              value: "true"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_TRUST_SERVER_CERT
+            #APP Behavior      
             - name: APP_ROLE
               value: "aggregator"
             - name: DISABLE_SQL
@@ -457,20 +516,43 @@ spec:
           ports:
             - containerPort: 8080
           env:
+            # SQL connection (from Secret)
             - name: SQL_SERVER
-              value: "MS_SQL_ENDPOINT.us-west-2.rds.amazonaws.com"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_SERVER
             - name: SQL_PORT
-              value: "1433"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_PORT
             - name: SQL_DATABASE
-              value: "MS_SQL_DBName"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_DATABASE
             - name: SQL_USER
-              value: "MS_SQL_UserName"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_USER
             - name: SQL_PASSWORD
-              value: "MS_SQL_UserPassword"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_PASSWORD
             - name: SQL_ENCRYPT
-              value: "true"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_ENCRYPT
             - name: SQL_TRUST_SERVER_CERT
-              value: "true"
+              valueFrom:
+                secretKeyRef:
+                  name: stresstest-sql
+                  key: SQL_TRUST_SERVER_CERT
+            #APP Behavior
             - name: APP_ROLE
               value: "messages"
             - name: DISABLE_SQL
