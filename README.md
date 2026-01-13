@@ -148,3 +148,4 @@ kubectl --kubeconfig k8s/multicare-dev-eks.config apply -f k8s/stress-app.yaml
 
 - Run K6 load test:
   - .\k6.exe run full-loadtest.js
+  - .\k6.exe cloud run full-loadtest.js
