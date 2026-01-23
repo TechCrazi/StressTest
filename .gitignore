@@ -2,3 +2,5 @@
 notes.git.txt
 *.DS_Store
 **/.DS_Store
+slim.report.json
+/slim-artifacts/*

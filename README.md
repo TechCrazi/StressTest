@@ -63,10 +63,11 @@ Other:
 - `SQL_TABLE` (`stress_writes`)
 
 ## Endpoints
-- `GET /healthz` – DB ping.
+- `GET /healthz` – DB ping (SQL required).
 - `GET /status` – pod status snapshot.
 - `GET|POST /write` – single write (or simulated if `DISABLE_SQL=true`).
-- `GET /messages` – latest rows from SQL; size-only by default, `mode=full` returns payload (truncated to 5 MB per row) and per-row fetch duration.
+- `GET /messages?limit=10` – latest rows from SQL; size-only by default.
+- `GET /messages?limit=5&mode=full` – full message payload (truncated to 5 MB per row) + per-row fetch duration.
 - `GET /sqlread` – manual SQL read dashboard (messages role).
 - `GET /dashboard` – HTML dashboard (aggregator role).
 - `GET /stats` – JSON used by the dashboard (aggregated ring-aware).
@@ -89,6 +90,99 @@ dotnet run
 ```bash
 docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/techcrazi/sql-stress:latest . --push
 ```
+
+## Container Scan via Trivy
+
+#### Install Trivy
+```bash
+brew install trivy
+```
+
+#### Scan Image
+```bash
+trivy image ghcr.io/techcrazi/sql-stress:latest
+```
+
+
+## Container Scan via Slim
+
+#### Install Slim
+```bash
+brew install docker-slim
+```
+
+#### Run SQL Container for testing
+```bash
+docker run -d \
+  --name sql-test \
+  --platform linux/amd64 \
+  -e "ACCEPT_EULA=Y" \
+  -e "MSSQL_SA_PASSWORD=StrongPass123" \
+  -p 1433:1433 \
+  mcr.microsoft.com/mssql/server:2022-latest
+```
+
+
+##### Scan Image
+```bash
+slim build \
+  --target ghcr.io/techcrazi/sql-stress:latest \
+  --tag sql-stress:slim \
+  --publish-port 9080:8080 \
+  --http-probe-cmd 'GET:/healthz' \
+  --http-probe-cmd 'GET:/status' \
+  --http-probe-cmd 'GET:/write' \
+  --http-probe-cmd 'GET:/dashboard' \
+  --http-probe-cmd 'GET:/messages?limit=10' \
+  --http-probe-cmd 'GET:/messages?limit=5&mode=full' \
+  --http-probe-cmd 'GET:/sqlread' \
+  --continue-after=probe \
+  --copy-meta-artifacts ./slim-artifacts \
+  --env SQL_SERVER=sql-test \
+  --env SQL_DATABASE=stress \
+  --env SQL_USER=sa \
+  --env SQL_PASSWORD=StrongPass123 \
+  --env SQL_ENCRYPT=false \
+  --env SQL_TRUST_SERVER_CERT=true \
+  --env SQL_CONNECT_TIMEOUT_SECONDS=1
+```
+
+##### Image Testing
+```bash
+slim build \
+  --target ghcr.io/techcrazi/sql-stress:latest \
+  --tag sql-stress:slim \
+  --publish-port 9080:8080 \
+  --publish-port 9081:8081 \
+  --continue-after=enter \
+  --copy-meta-artifacts ./slim-artifacts \
+  --env SQL_SERVER=sql-test \
+  --env SQL_DATABASE=stress \
+  --env SQL_USER=sa \
+  --env SQL_PASSWORD=StrongPass123 \
+  --env SQL_ENCRYPT=false \
+  --env SQL_TRUST_SERVER_CERT=true \
+  --env SQL_CONNECT_TIMEOUT_SECONDS=1 \
+  --env DISABLE_SQL=true
+```
+
+
+##### Push gRPC message
+```bash
+grpcurl -vv -plaintext \
+  -proto Protos/stress.proto \
+  -d '{"sizeBytes":1024}' \
+  localhost:9081 stress.StressTest/Write
+```
+
+
+##### Push Slim Image to GHCR
+```bash
+docker tag sql-stress:slim ghcr.io/techcrazi/sql-stress:slim
+docker push ghcr.io/techcrazi/sql-stress:slim
+````
+
+
 
 ## Kubernetes (EKS + Traefik)
 1) Edit `k8s/stress-app.yaml` for your image, host, and DB settings, then apply:

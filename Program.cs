@@ -128,7 +128,14 @@ if (!string.IsNullOrWhiteSpace(cfg.OtlpEndpoint))
 var app = builder.Build();
 app.UseCors("any");
 
-await EnsureTableAsync(cfg, app.Logger);
+try
+{
+    await EnsureTableAsync(cfg, app.Logger);
+}
+catch (Exception ex)
+{
+    app.Logger.LogError(ex, "SQL startup check failed. App will continue without SQL connectivity.");
+}
 
 var traffic = app.Services.GetRequiredService<TrafficTracker>();
 
