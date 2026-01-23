@@ -106,10 +106,37 @@ trivy image ghcr.io/techcrazi/sql-stress:latest
 
 ## Container Scan via Slim
 
-#### Install Slim
+#### Install Slim MAC
 ```bash
 brew install docker-slim
 ```
+
+#### Install Slim Windows
+ - Enable WSL on Windows Desktop
+ - Install Docker Desktop
+ - Install Ubuntu WSL image
+
+```powershell
+wsl --install -d Ubuntu
+```
+ - Update Docker Desktop Settings
+    
+  - Open Docker Desktop → Settings
+  - Go to:
+  - Resources → WSL Integration
+
+  - Turn ON:
+	  -  Enable integration with my default WSL distro
+	  -  Ubuntu
+
+  - Click Apply & Restart
+
+  - SSH into Ubunut WSL
+  - Install Slim
+  ```bash
+  curl -sL https://raw.githubusercontent.com/slimtoolkit/slim/master/scripts/install-slim.sh | sudo -E bash -
+  ```
+
 
 #### Run SQL Container for testing
 ```bash
@@ -123,12 +150,14 @@ docker run -d \
 ```
 
 
-##### Scan Image
+##### Scan & Build Image AMD64 (On Intel or AMD Processor)
 ```bash
 slim build \
   --target ghcr.io/techcrazi/sql-stress:latest \
-  --tag sql-stress:slim \
+  --tag ghcr.io/techcrazi/sql-stress:slim-amd64 \
+  --image-build-arch amd64 \
   --publish-port 9080:8080 \
+  --publish-port 9081:8081 \
   --http-probe-cmd 'GET:/healthz' \
   --http-probe-cmd 'GET:/status' \
   --http-probe-cmd 'GET:/write' \
@@ -136,6 +165,8 @@ slim build \
   --http-probe-cmd 'GET:/messages?limit=10' \
   --http-probe-cmd 'GET:/messages?limit=5&mode=full' \
   --http-probe-cmd 'GET:/sqlread' \
+  --include-path '/app' \
+  --include-path '/usr/share/dotnet/shared/Microsoft.NETCore.App' \
   --continue-after=probe \
   --copy-meta-artifacts ./slim-artifacts \
   --env SQL_SERVER=sql-test \
@@ -146,6 +177,48 @@ slim build \
   --env SQL_TRUST_SERVER_CERT=true \
   --env SQL_CONNECT_TIMEOUT_SECONDS=1
 ```
+
+ - --http-probe-cmd > Application Enpoint that Slim will check against
+ - --include-path '/app' > Retain OTEL dlls 
+ - --include-path '/usr/share/dotnet/shared/Microsoft.NETCore.App' > Retain .Net dlls
+
+  - Orignal Image: 342.85 MB
+  - Slim Image: 217.87 MB
+
+
+##### Scan & Build Image ARM64 (On Apple or ARM Processor)
+```bash
+slim build \
+  --target ghcr.io/techcrazi/sql-stress:latest \
+  --tag ghcr.io/techcrazi/sql-stress:slim-arm64 \
+  --image-build-arch arm64 \
+  --publish-port 9080:8080 \
+  --publish-port 9081:8081 \
+  --http-probe-cmd 'GET:/healthz' \
+  --http-probe-cmd 'GET:/status' \
+  --http-probe-cmd 'GET:/write' \
+  --http-probe-cmd 'GET:/dashboard' \
+  --http-probe-cmd 'GET:/messages?limit=10' \
+  --http-probe-cmd 'GET:/messages?limit=5&mode=full' \
+  --http-probe-cmd 'GET:/sqlread' \
+  --include-path '/app' \
+  --include-path '/usr/share/dotnet/shared/Microsoft.NETCore.App' \
+  --copy-meta-artifacts ./slim-artifacts \
+  --env SQL_SERVER=sql-test \
+  --env SQL_DATABASE=stress \
+  --env SQL_USER=sa \
+  --env SQL_PASSWORD=StrongPass123 \
+  --env SQL_ENCRYPT=false \
+  --env SQL_TRUST_SERVER_CERT=true \
+  --env SQL_CONNECT_TIMEOUT_SECONDS=1
+```
+
+ - --http-probe-cmd > Application Enpoint that Slim will check against
+ - --include-path '/app' > Retain OTEL dlls 
+ - --include-path '/usr/share/dotnet/shared/Microsoft.NETCore.App' > Retain .Net dlls
+
+  - Orignal Image: 372.56 MB
+  - Slim Image: 226.60 MB
 
 ##### Image Testing
 ```bash
@@ -178,8 +251,15 @@ grpcurl -vv -plaintext \
 
 ##### Push Slim Image to GHCR
 ```bash
-docker tag sql-stress:slim ghcr.io/techcrazi/sql-stress:slim
-docker push ghcr.io/techcrazi/sql-stress:slim
+docker push ghcr.io/techcrazi/sql-stress:slim-amd64
+docker push ghcr.io/techcrazi/sql-stress:slim-arm64
+
+docker manifest create ghcr.io/techcrazi/sql-stress:slim \
+  --amend ghcr.io/techcrazi/sql-stress:slim-amd64 \
+  --amend ghcr.io/techcrazi/sql-stress:slim-arm64
+
+docker manifest push ghcr.io/techcrazi/sql-stress:slim
+
 ````
 
 
