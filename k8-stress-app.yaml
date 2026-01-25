@@ -138,6 +138,10 @@ spec:
             # Ring/peers
             - name: RING_ENDPOINT
               value: "http://sql-stress-aggregator.stresstest.svc.cluster.local/register"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -146,6 +150,7 @@ spec:
               value: "sql-stress-ingester"
             - name: PEER_SERVICE_PORT
               value: "8080"
+            # Optional comma-separated base URLs; aggregator polls /stats?scope=local on each.
             - name: PEER_DASHBOARD_URLS
               value: ""
             # OTLP (optional)
@@ -382,6 +387,10 @@ spec:
               value: "true"   # aggregator should not do writes; dashboard only
             - name: SQL_INSERT_MODE
               value: "random"
+            - name: PAYLOAD_MIN_BYTES
+              value: "1024"
+            - name: PAYLOAD_MAX_BYTES
+              value: "52428800"
             - name: APP_PORT
               value: "8080"
             - name: APP_GRPC_PORT
@@ -390,6 +399,10 @@ spec:
               value: "Debug"
             - name: RING_ENDPOINT
               value: "http://sql-stress-aggregator.stresstest.svc.cluster.local/register"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -398,14 +411,31 @@ spec:
               value: "sql-stress-ingester"
             - name: PEER_SERVICE_PORT
               value: "8080"
+            # Optional comma-separated base URLs; aggregator polls /stats?scope=local on each.
             - name: PEER_DASHBOARD_URLS
               value: ""
+            - name: SQL_TABLE
+              value: "stress_writes"
+            - name: SQL_TIMEOUT_SECONDS
+              value: "60"
+            - name: SQL_CONNECT_TIMEOUT_SECONDS
+              value: "30"
+            - name: SQL_MAX_POOL_SIZE
+              value: "200"
+            - name: SQL_MIN_POOL_SIZE
+              value: "10"
+            - name: MAX_INFLIGHT_SQL
+              value: "0"
+            - name: MAX_QUEUE_LENGTH
+              value: "0"
             - name: OTLP_ENDPOINT
               value: "http://grafana-k8s-monitoring-alloy-receiver.grafana-cloud.svc.cluster.local:4317"
             - name: OTLP_INSECURE
               value: "true"
             - name: OTLP_HEADERS
               value: ""
+            - name: DOTNET_SYSTEM_GLOBALIZATION_INVARIANT
+              value: "0"
           readinessProbe:
             httpGet:
               path: /healthz
@@ -559,6 +589,10 @@ spec:
               value: "true" # prevent writes; reads still allowed
             - name: SQL_INSERT_MODE
               value: "random"
+            - name: PAYLOAD_MIN_BYTES
+              value: "1024"
+            - name: PAYLOAD_MAX_BYTES
+              value: "52428800"
             - name: APP_PORT
               value: "8080"
             - name: APP_GRPC_PORT
@@ -567,6 +601,10 @@ spec:
               value: "Debug"
             - name: RING_ENDPOINT
               value: "" # no ring participation
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -575,6 +613,7 @@ spec:
               value: ""
             - name: PEER_SERVICE_PORT
               value: "8080"
+            # Optional comma-separated base URLs; aggregator polls /stats?scope=local on each.
             - name: PEER_DASHBOARD_URLS
               value: ""
             - name: SQL_TIMEOUT_SECONDS
@@ -587,6 +626,8 @@ spec:
               value: "10"
             - name: MAX_INFLIGHT_SQL
               value: "32"
+            - name: MAX_QUEUE_LENGTH
+              value: "0"
             - name: SQL_TABLE
               value: "stress_writes"
             - name: OTLP_ENDPOINT

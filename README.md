@@ -1,4 +1,4 @@
-# SQL stress test service (.NET 8)
+# Microsoft SQL stress test service (.NET 8)
 
 ASP.NET Core service to pressure-test Traefik, EKS, and SQL Server (RDS SQL Web). Supports HTTP and gRPC writes with random/HL7/passthrough payloads (default 1 KB–50 MB), optional SQL disable, ring-based aggregation, OTLP telemetry (`service.name = sql-stress`), and a separate SQL read dashboard. Kestrel/gRPC limits are raised to 60 MB to allow 50 MB payloads.
 
