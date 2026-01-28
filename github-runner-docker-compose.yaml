@@ -1,0 +1,25 @@
+services:
+  runner-arm:
+    image: myoung34/github-runner:latest
+    container_name: gh-runner-arm
+    restart: always
+    environment:
+      RUNNER_NAME: runner-arm
+      RUNNER_LABELS: self-hosted,linux,arm64,docker
+      REPO_URL: https://github.com/TechCrazi/StressTest
+      ACCESS_TOKEN: ${GITHUB_PAT}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  runner-amd64:
+    image: myoung34/github-runner:latest
+    platform: linux/amd64
+    container_name: gh-runner-amd64
+    restart: always
+    environment:
+      RUNNER_NAME: runner-amd64
+      RUNNER_LABELS: self-hosted,linux,x64,docker
+      REPO_URL: https://github.com/TechCrazi/StressTest
+      ACCESS_TOKEN: ${GITHUB_PAT}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
