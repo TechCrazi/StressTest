@@ -4,3 +4,4 @@ notes.git.txt
 **/.DS_Store
 slim.report.json
 /slim-artifacts/*
+/actions-runner/*
