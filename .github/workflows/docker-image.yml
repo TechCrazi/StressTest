@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: [self-hosted, macos]    # adjust labels to match your runner (e.g. x64)
+    runs-on: [self-hosted, macos, x64]    # adjust labels to match your runner (e.g. x64)
     steps:
       - name: Checkout
         uses: actions/checkout@v4
