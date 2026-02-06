@@ -131,7 +131,7 @@ wsl --install -d Ubuntu
 
   - Click Apply & Restart
 
-  - SSH into Ubunut WSL
+  - SSH into Ubuntu WSL
   - Install Slim
   ```bash
   curl -sL https://raw.githubusercontent.com/slimtoolkit/slim/master/scripts/install-slim.sh | sudo -E bash -
@@ -178,11 +178,11 @@ slim build \
   --env SQL_CONNECT_TIMEOUT_SECONDS=1
 ```
 
- - --http-probe-cmd > Application Enpoint that Slim will check against
- - --include-path '/app' > Retain OTEL dlls 
- - --include-path '/usr/share/dotnet/shared/Microsoft.NETCore.App' > Retain .Net dlls
+ - --http-probe-cmd > Application endpoint that Slim will check against
+ - --include-path '/app' > Retain OTEL DLLs 
+ - --include-path '/usr/share/dotnet/shared/Microsoft.NETCore.App' > Retain .NET DLLs
 
-  - Orignal Image: 342.85 MB
+  - Original Image: 342.85 MB
   - Slim Image: 217.87 MB
 
 
@@ -213,11 +213,11 @@ slim build \
   --env SQL_CONNECT_TIMEOUT_SECONDS=1
 ```
 
- - --http-probe-cmd > Application Enpoint that Slim will check against
- - --include-path '/app' > Retain OTEL dlls 
- - --include-path '/usr/share/dotnet/shared/Microsoft.NETCore.App' > Retain .Net dlls
+ - --http-probe-cmd > Application endpoint that Slim will check against
+ - --include-path '/app' > Retain OTEL DLLs 
+ - --include-path '/usr/share/dotnet/shared/Microsoft.NETCore.App' > Retain .NET DLLs
 
-  - Orignal Image: 372.56 MB
+  - Original Image: 372.56 MB
   - Slim Image: 226.60 MB
 
 ##### Image Testing
@@ -287,7 +287,7 @@ kubectl --kubeconfig k8s/multicare-dev-eks.config apply -f k8s/stress-app.yaml
 - Set `PAYLOAD_MIN_BYTES` = `PAYLOAD_MAX_BYTES` for deterministic size. For heavier loads, tune `MAX_INFLIGHT_SQL`, pool settings, and RDS instance size.
 
 ## K6 Testing
-- Update \k6\full-loadtest.js file
+- Update `k6/full-loadtest.js` file
 
   - Test intensity
      - `const VUS` → 50                    `number of concurrent virtual users`
